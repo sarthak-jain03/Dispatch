@@ -32,6 +32,19 @@ All of this happens **asynchronously**, in **under 10 seconds**, end-to-end.
 
 ---
 
+## Application Preview
+### Home Page
+![Home](./assests/img.png)
+
+### Book Ride
+![Book](./assests/img_1.png)
+![Book](./assests/img_3.png)
+
+### Track Ride
+![Track](./assests/img_4.png)
+![Track](./assests/img_5.png)
+![Track](./assests/img_6.png)
+
 ## Frontend Preview
 
 The React frontend includes:
