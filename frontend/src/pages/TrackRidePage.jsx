@@ -4,7 +4,7 @@ import MapView from '../components/MapView';
 import RideStatusTracker from '../components/RideStatusTracker';
 import { useRidePolling } from '../hooks/useRidePolling';
 import { markArrived, startRide, completeRide, cancelRide, } from '../api/rideApi';
-import { getDriverPosition } from '../api/locationApi';
+import { getDriverPosition, updateDriverLocation } from '../api/locationApi';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 export default function TrackRidePage() {
     const { rideId } = useParams();
@@ -15,9 +15,44 @@ export default function TrackRidePage() {
     });
     const [actionLoading, setActionLoading] = useState(false);
     const [driverLocation, setDriverLocation] = useState(null);
+    const [isSimulating, setIsSimulating] = useState(false);
+
+    const simulateMovement = useCallback((start, end, durationMs = 3000) => {
+        return new Promise((resolve) => {
+            setIsSimulating(true);
+            const startTime = performance.now();
+
+            const animate = (currentTime) => {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / durationMs, 1);
+
+                const ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+                const lat = start[0] + (end[0] - start[0]) * ease;
+                const lng = start[1] + (end[1] - start[1]) * ease;
+
+                setDriverLocation([lat, lng]);
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    updateDriverLocation({
+                        driverId: ride?.driverId,
+                        latitude: end[0],
+                        longitude: end[1]
+                    }).catch(() => {});
+
+                    setIsSimulating(false);
+                    resolve();
+                }
+            };
+            requestAnimationFrame(animate);
+        });
+    }, [ride?.driverId]);
+
     // Fetch driver position when we have a driverId
     React.useEffect(() => {
-        if (!ride?.driverId)
+        if (!ride?.driverId || isSimulating)
             return;
         let cancelled = false;
         const poll = async () => {
@@ -109,7 +144,17 @@ export default function TrackRidePage() {
           </div>
 
           {/* Status Tracker */}
-          <RideStatusTracker ride={ride} onDriverArrived={() => handleAction(() => markArrived(ride.id))} onStartRide={() => handleAction(() => startRide(ride.id))} onCompleteRide={() => handleAction(() => completeRide(ride.id))} onCancelRide={() => handleAction(() => cancelRide(ride.id))} actionLoading={actionLoading}/>
+          <RideStatusTracker ride={ride} onDriverArrived={() => {
+            const currentLoc = driverLocation || [ride.pickupLatitude, ride.pickupLongitude - 0.005];
+            const drop = [ride.pickupLatitude, ride.pickupLongitude];
+            simulateMovement(currentLoc, drop, 3000);
+            handleAction(() => markArrived(ride.id));
+        }} onStartRide={() => {
+            const pickup = [ride.pickupLatitude, ride.pickupLongitude];
+            const drop = [ride.dropLatitude, ride.dropLongitude];
+            simulateMovement(pickup, drop, 5000);
+            handleAction(() => startRide(ride.id));
+        }} onCompleteRide={() => handleAction(() => completeRide(ride.id))} onCancelRide={() => handleAction(() => cancelRide(ride.id))} actionLoading={actionLoading}/>
 
           {/* Post-completion */}
           {(ride.status === 'COMPLETED' || ride.status === 'CANCELLED') && (<div className="mt-8 pt-6 border-t border-uber-gray-800 space-y-3">
