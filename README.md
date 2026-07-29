@@ -45,7 +45,12 @@ All of this happens **asynchronously**, in **under 10 seconds**, end-to-end.
 ### Track Ride
 ![Track](./assests/img_4.png)
 ![Track](./assests/img_5.png)
-![Track](./assests/img_6.png)
+
+### Make Payment
+![Payment](./assests/img_6.png)
+![Payment](./assests/img_7.png)
+![Payment](./assests/img_8.png)
+
 
 ## Frontend Preview
 
