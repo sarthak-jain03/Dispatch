@@ -22,6 +22,11 @@ export default defineConfig({
                 changeOrigin: true,
                 rewrite: (p) => p.replace(/^\/api\/ride/, '/ride'),
             },
+            '/api/payment': {
+                target: 'http://localhost:8082',
+                changeOrigin: true,
+                rewrite: (p) => p.replace(/^\/api\/payment/, '/payment'),
+            },
             '/api/matching': {
                 target: 'http://localhost:8083',
                 changeOrigin: true,

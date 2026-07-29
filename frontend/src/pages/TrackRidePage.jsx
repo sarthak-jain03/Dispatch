@@ -157,7 +157,7 @@ export default function TrackRidePage() {
         }} onCompleteRide={() => handleAction(() => completeRide(ride.id))} onCancelRide={() => handleAction(() => cancelRide(ride.id))} actionLoading={actionLoading}/>
 
           {/* Post-completion */}
-          {(ride.status === 'COMPLETED' || ride.status === 'CANCELLED') && (<div className="mt-8 pt-6 border-t border-uber-gray-800 space-y-3">
+          {(ride.status === 'PAYMENT_COMPLETED' || ride.status === 'COMPLETED' || ride.status === 'CANCELLED' || ride.status === 'MATCHING_FAILED' || ride.status === 'PAYMENT_FAILED') && (<div className="mt-8 pt-6 border-t border-uber-gray-800 space-y-3">
               <Link to="/book" className="btn-primary w-full no-underline">
                 Book Another Ride
               </Link>

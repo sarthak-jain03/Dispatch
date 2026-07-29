@@ -14,4 +14,6 @@ public interface RideRepository extends JpaRepository<Ride, String> {
     List<Ride>findByStatus(RideStatus status);
 
     Optional<Ride> findByUserIdAndStatus(String userId, RideStatus status);
+
+    Optional<Ride> findByIdempotencyKey(String idempotencyKey);
 }

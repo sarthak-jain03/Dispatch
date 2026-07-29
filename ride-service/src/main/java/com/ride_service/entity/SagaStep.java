@@ -1,0 +1,15 @@
+package com.ride_service.entity;
+
+public enum SagaStep {
+    RIDE_CREATED,
+    MATCHING_REQUESTED,
+    DRIVER_ASSIGNED,
+    DRIVER_ARRIVED,
+    RIDE_STARTED,
+    RIDE_COMPLETED,
+    PAYMENT_ORDER_CREATED,
+    PAYMENT_VERIFIED,
+    RIDE_CANCELLED,
+    MATCHING_FAILED,
+    PAYMENT_FAILED
+}

@@ -19,4 +19,5 @@ public class RideRequest {
 
     private String pickupAddress;
     private String dropAddress;
+    private String idempotencyKey;
 }

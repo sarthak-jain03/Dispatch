@@ -30,6 +30,8 @@ spring:
 location-service:
   url: http://localhost:8081
 
+ride-service:
+  url: http://localhost:8082
 
 matching:
   search-radius-km: 5.0

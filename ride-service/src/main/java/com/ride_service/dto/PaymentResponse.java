@@ -1,0 +1,15 @@
+package com.ride_service.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class PaymentResponse {
+    private String orderId;
+    private int amount;       // in paise
+    private String currency;
+    private String razorpayKeyId;
+}

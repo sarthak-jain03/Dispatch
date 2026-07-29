@@ -58,4 +58,22 @@ public class Ride {
     private LocalDateTime startedAt;
     private LocalDateTime completedAt;
 
+    // ── Payment fields ──
+
+    @Enumerated(EnumType.STRING)
+    private PaymentStatus paymentStatus;
+
+    private String paymentOrderId;
+    private String paymentId;
+
+    // ── Idempotency ──
+
+    @Column(unique = true)
+    private String idempotencyKey;
+
+    // ── Optimistic locking ──
+
+    @Version
+    private Long version;
+
 }

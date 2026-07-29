@@ -40,9 +40,19 @@ spring:
         spring.json.use.type.headers: false
         spring.json.value.default.type: com.ride_service.dto.DriverFoundEvent
 
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
 
 location-service:
   url: http://localhost:8081
+
+# Razorpay configuration (use test keys for development)
+razorpay:
+  key-id: rzp_test_TJI3p27tk20FrK
+  key-secret: GKqsckcCPqcLyNjcJ4UY7y2O
 
 logging:
   level:

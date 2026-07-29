@@ -2,7 +2,9 @@ package com.ride_service.controller;
 
 import com.ride_service.dto.RideRequest;
 import com.ride_service.entity.Ride;
+import com.ride_service.entity.SagaEvent;
 import com.ride_service.service.RideService;
+import com.ride_service.service.SagaEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,7 @@ import java.util.Map;
 public class RideController {
 
     private final RideService rideService;
+    private final SagaEventService sagaEventService;
 
 
     @PostMapping("/request")
@@ -71,6 +74,13 @@ public class RideController {
         return ResponseEntity.ok(ride);
     }
 
+
+    @GetMapping("/{rideId}/saga-events")
+    public ResponseEntity<List<SagaEvent>> getSagaEvents(@PathVariable String rideId) {
+        log.info("GET /ride/{}/saga-events", rideId);
+        List<SagaEvent> events = sagaEventService.getEventLog(rideId);
+        return ResponseEntity.ok(events);
+    }
 
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {

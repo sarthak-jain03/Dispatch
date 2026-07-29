@@ -1,6 +1,7 @@
 package com.matching_service.service;
 
 import com.matching_service.config.MatchingServiceConfig;
+import com.matching_service.dto.MatchingFailedEvent;
 import com.matching_service.dto.DriverFoundEvent;
 import com.matching_service.dto.NearbyDriver;
 import com.matching_service.dto.RideRequestedEvent;
@@ -14,6 +15,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -31,6 +33,9 @@ public class MatchingService {
 
     @Value("${location-service.url}")
     private String locationServiceUrl;
+
+    @Value("${ride-service.url}")
+    private String rideServiceUrl;
 
     @Value("${matching.search-radius-km}")
     private double searchRadiusKm;
@@ -56,6 +61,7 @@ public class MatchingService {
         if (nearbyDrivers == null || nearbyDrivers.isEmpty()) {
             log.warn("No drivers found within {}km for rideId: {}",
                     searchRadiusKm, event.getRideId());
+            publishMatchingFailed(event.getRideId(), "No nearby drivers found");
             return;
         }
 
@@ -66,6 +72,7 @@ public class MatchingService {
 
         if (assignedDriver == null) {
             log.warn("All drivers declined for rideId: {}", event.getRideId());
+            publishMatchingFailed(event.getRideId(), "All candidate drivers declined or locked");
             return;
         }
 
@@ -108,10 +115,14 @@ public class MatchingService {
     private NearbyDriver tryAssignDriver(List<NearbyDriver> rankedDrivers,
                                          RideRequestedEvent event) {
         for (NearbyDriver driver : rankedDrivers) {
-
-            log.info("Notifying driver {} (score: {})...",
+            log.info("Attempting to lock and notify driver {} (score: {})...",
                     driver.getDriverId(), driver.getScore());
 
+            if (!tryLockRide(event.getRideId(), driver.getDriverId())) {
+                log.warn("Ride {} is already locked by another driver/failed lock. Skipping driver {}",
+                        event.getRideId(), driver.getDriverId());
+                continue;
+            }
 
             boolean accepted = simulateDriverResponse(driver);
 
@@ -119,11 +130,38 @@ public class MatchingService {
                 log.info("Driver {} accepted the ride!", driver.getDriverId());
                 return driver;
             } else {
-                log.info("Driver {} declined. Trying next...", driver.getDriverId());
+                log.info("Driver {} declined. Releasing lock and trying next...", driver.getDriverId());
+                releaseLockRide(event.getRideId(), driver.getDriverId());
             }
         }
 
         return null;
+    }
+
+    private boolean tryLockRide(String rideId, String driverId) {
+        String url = String.format("%s/lock/ride/%s/acquire?driverId=%s", rideServiceUrl, rideId, driverId);
+        try {
+            ResponseEntity<Void> response = restTemplate.postForEntity(url, null, Void.class);
+            return response.getStatusCode().is2xxSuccessful();
+        } catch (Exception e) {
+            log.warn("Failed to acquire lock for ride {} and driver {}: {}", rideId, driverId, e.getMessage());
+            return false;
+        }
+    }
+
+    private void releaseLockRide(String rideId, String driverId) {
+        String url = String.format("%s/lock/ride/%s/release?driverId=%s", rideServiceUrl, rideId, driverId);
+        try {
+            restTemplate.delete(url);
+        } catch (Exception e) {
+            log.error("Failed to release lock for ride {} and driver {}: {}", rideId, driverId, e.getMessage());
+        }
+    }
+
+    private void publishMatchingFailed(String rideId, String reason) {
+        MatchingFailedEvent event = new MatchingFailedEvent(rideId, reason, LocalDateTime.now());
+        log.info("Publishing matching.failed → rideId: {}, reason: {}", rideId, reason);
+        kafkaTemplate.send(MatchingServiceConfig.MATCHING_FAILED_TOPIC, rideId, event);
     }
 
     private boolean simulateDriverResponse(NearbyDriver driver) {

@@ -12,6 +12,7 @@ public class MatchingServiceConfig {
 
     public static final String RIDE_REQUESTED_TOPIC = "ride.requested";
     public static final String DRIVER_FOUND_TOPIC = "driver.found";
+    public static final String MATCHING_FAILED_TOPIC = "ride.matching.failed";
 
     @Bean
     public RestTemplate restTemplate() {
@@ -29,6 +30,14 @@ public class MatchingServiceConfig {
     @Bean
     public NewTopic driverFoundTopic() {
         return TopicBuilder.name(DRIVER_FOUND_TOPIC)
+                .partitions(1)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic matchingFailedTopic() {
+        return TopicBuilder.name(MATCHING_FAILED_TOPIC)
                 .partitions(1)
                 .replicas(1)
                 .build();
