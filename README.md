@@ -26,6 +26,8 @@
 - Redis geospatial indexing finds nearby drivers in under 1ms
 - A scoring algorithm picks the **best** driver — not just the closest
 - Kafka event streaming notifies and assigns the driver asynchronously
+- **Distributed Saga Orchestration** coordinates transactions and rollbacks across services (driver lock, ride matching, booking, and payment)
+- Secure **Razorpay Payment Integration** handles card/UPI checkouts with HMAC-SHA256 signature verification and automatic refund compensations
 - The user tracks the ride through its full lifecycle on an interactive map
 
 All of this happens **asynchronously**, in **under 10 seconds**, end-to-end.
@@ -267,6 +269,9 @@ Visit **http://localhost:5173** in your browser.
 | `PUT` | `/ride/{rideId}/complete` | Ride completed |
 | `PUT` | `/ride/{rideId}/cancel` | Cancel the ride |
 | `GET` | `/ride/health` | Health check |
+| `POST` | `/payment/create-order` | Create Razorpay order for completed ride |
+| `POST` | `/payment/verify` | Verify Razorpay payment signature (HMAC-SHA256) |
+| `GET` | `/payment/{rideId}/status` | Get current payment status of a ride |
 
 ### Matching Service — `http://localhost:8083`
 
@@ -277,21 +282,42 @@ Visit **http://localhost:5173** in your browser.
 
 ---
 
+## Distributed Saga & Locking Architecture
+
+### 1. Redis Distributed Locking
+To prevent race conditions where multiple drivers might lock or accept the same ride, a distributed lock is acquired on the `rideId` in Redis during assignment:
+* **Key:** `lock:ride:{rideId}`
+* Ensures exclusive transactional assignment for matching.
+
+### 2. Saga Orchestrator & Compensating Transactions
+Distributed actions are coordinated using a **Local Saga Orchestrator** pattern in the `ride-service`. Each step has a corresponding compensation event if a subsequent process fails:
+* **Ride Request & Match Initiation** (`MATCHING_REQUESTED`) 
+  * *Compensation:* Marks ride as `MATCHING_FAILED`.
+* **Driver Selection & Lock** (`DRIVER_ASSIGNED`)
+  * *Compensation:* Releases Redis lock, cancels the ride, and makes the driver available.
+* **Razorpay Order Creation** (`PAYMENT_ORDER_CREATED`)
+  * *Compensation:* Marks the ride status as `PAYMENT_FAILED`.
+* **Signature Verification** (`PAYMENT_VERIFIED`)
+  * *Compensation:* Triggers an automatic Razorpay Refund if payment was captured but verification failed.
+
+---
+
 ##  Kafka Topics
 
 | Topic | Producer | Consumer | When |
 |---|---|---|---|
 | `ride.requested` | Ride-Service | Matching-Service | User books a ride |
 | `driver.found` | Matching-Service | Ride-Service | Driver is assigned |
+| `ride.matching.failed` | Matching-Service | Ride-Service | No nearby driver matches the request |
 
 ---
 
 ##  Ride Status Lifecycle
 
 ```
-REQUESTED ──► DRIVER_ASSIGNED ──► DRIVER_ARRIVED ──► IN_PROGRESS ──► COMPLETED
-    │
-    └─────────────────────────────────────────────────────────────► CANCELLED
+REQUESTED ──► DRIVER_ASSIGNED ──► DRIVER_ARRIVED ──► IN_PROGRESS ──► COMPLETED ──► PAYMENT_PENDING ──► PAYMENT_COMPLETED
+    │                                                                                     │
+    └─────────────────────────────────────────────────────────────────────────────► CANCELLED / PAYMENT_FAILED
 ```
 
 The React frontend's `useRidePolling` hook polls `GET /ride/{rideId}` every 3 seconds and updates the UI automatically as the status changes.
